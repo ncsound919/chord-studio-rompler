@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chord Studio Rompler</title>
+<style>
+  :root {
+    --bg:      #0e0f11;
+    --panel:   #17191c;
+    --panel-2: #1e2126;
+    --border:  #2a2e34;
+    --text:    #e6e8ea;
+    --dim:     #8b929b;
+    --accent:  #f2a33c;
+    --danger:  #e0574d;
+    --radius:  10px;
+    --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ---- header strip -------------------------------------------------- */
+  .strip {
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 14px;
+    min-height: 46px;
+    background: linear-gradient(180deg, #1c1f24, #141619);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    font-weight: 700; letter-spacing: 0.14em; font-size: 11px;
+    color: var(--dim); text-transform: uppercase;
+  }
+
+  .browser { display: flex; align-items: center; gap: 6px; }
+
+  .icon-btn {
+    width: 26px; height: 26px;
+    display: grid; place-items: center;
+    border: 1px solid var(--border); border-radius: 7px;
+    background: var(--panel-2); color: var(--text);
+    font-size: 15px; line-height: 1; cursor: pointer;
+  }
+  .icon-btn:hover { border-color: #3a3f47; background: #24282e; }
+  .icon-btn:active { transform: translateY(1px); }
+  .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .chip {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 200px; max-width: 320px; height: 28px;
+    padding: 0 12px;
+    border: 1px solid var(--border); border-radius: 999px;
+    background: var(--panel-2); color: var(--text);
+    cursor: pointer; font-size: 12.5px;
+  }
+  .chip:hover, .chip:focus-visible { border-color: var(--accent); outline: none; }
+  .chip .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+  .spacer { flex: 1; }
+
+  .seg {
+    display: inline-flex; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: var(--panel-2);
+  }
+  .seg button {
+    border: 0; padding: 6px 10px; font-size: 11px; letter-spacing: 0.03em;
+    background: transparent; color: var(--dim); cursor: pointer;
+  }
+  .seg button.active { background: var(--accent); color: #141414; font-weight: 600; }
+  .seg button:not(.active):hover { color: var(--text); }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* ---- main ---------------------------------------------------------- */
+  main { flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 14px; min-height: 0; }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); }
+
+  .wave-card { position: relative; flex: 0 0 42%; min-height: 150px; overflow: hidden; display: flex; flex-direction: column; }
+  .wave-wrap { position: relative; flex: 1; min-height: 0; }
+  #wave { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+  #wave:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .wave-caption {
+    position: absolute; top: 10px; left: 14px;
+    font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--dim); pointer-events: none;
+  }
+
+  .tabs {
+    position: absolute; top: 8px; right: 10px;
+    display: inline-flex; background: rgba(14,15,17,0.72);
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  .tabs button { border: 0; background: transparent; color: var(--dim); padding: 5px 12px; font-size: 11.5px; cursor: pointer; }
+  .tabs button.active { background: var(--accent); color: #141414; font-weight: 600; }
+  .tabs button:not(.active):hover { color: var(--text); }
+
+  .loop-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--dim);
+  }
+  .loop-row input[type=range] { flex: 1; accent-color: var(--accent); }
+
+  .empty-hint {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    text-align: center; color: var(--dim); font-size: 12.5px; padding: 20px;
+    pointer-events: none;
+  }
+
+  .controls {
+    flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+    gap: 8px; align-content: start; padding: 12px; overflow-y: auto;
+  }
+  .controls.disabled { opacity: 0.4; pointer-events: none; }
+
+  .group-label {
+    grid-column: 1 / -1; margin: 6px 0 0;
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim);
+  }
+
+  .knob {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 4px 6px; border: 1px solid transparent; border-radius: 9px;
+    cursor: ns-resize;
+  }
+  .knob:hover { border-color: var(--border); background: var(--panel-2); }
+  .knob:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .knob svg { width: 46px; height: 46px; display: block; }
+  .knob .track { fill: none; stroke: #2f343b; stroke-width: 4; stroke-linecap: round; }
+  .knob .fill  { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; }
+  .knob .ptr   { stroke: var(--text); stroke-width: 2; stroke-linecap: round; }
+  .k-label { font-size: 10.5px; color: var(--dim); letter-spacing: 0.03em; }
+  .k-value { font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; }
+
+  .choice {
+    display: flex; flex-direction: column; gap: 4px; padding: 8px 4px;
+    font-size: 10.5px; color: var(--dim);
+  }
+  .choice select {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px; padding: 5px 6px; font-size: 11.5px;
+  }
+  .choice select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .mod-row {
+    grid-column: 1 / -1;
+    display: grid; grid-template-columns: 1fr 1fr 1.4fr auto;
+    gap: 8px; align-items: center;
+  }
+  .mod-row select {
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 4px 6px; font-size: 11px;
+  }
+  .mod-row input[type=range] { accent-color: var(--accent); }
+  .mod-amt { font-size: 11px; color: var(--text); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+
+  /* ---- browser drawer ------------------------------------------------ */
+  .drawer { display: none; flex-direction: column; max-height: 44%; background: var(--panel-2); border-bottom: 1px solid var(--border); }
+  .drawer.open { display: flex; }
+  .drawer-head { display: flex; align-items: center; gap: 12px; padding: 8px 16px 6px; font-size: 10.5px; letter-spacing: 0.06em; color: var(--dim); text-transform: uppercase; }
+  .drawer-folder { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .drawer-search {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 8px; font-size: 11px; min-width: 160px;
+  }
+  .drawer-search:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .file-list { list-style: none; margin: 0; padding: 0 8px 8px; overflow-y: auto; }
+  .file-list li { padding: 6px 10px; border-radius: 6px; font-size: 12px; color: var(--text); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-list li:hover { background: #262a30; }
+  .file-list li.active { background: var(--accent); color: #141414; font-weight: 600; }
+
+  /* ---- status -------------------------------------------------------- */
+  .status {
+    height: 26px; display: flex; align-items: center; gap: 10px; padding: 0 16px;
+    background: #121417; border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums;
+  }
+  .status.error { color: var(--danger); }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="strip">
+      <div class="brand">Rompler</div>
+
+      <div class="browser">
+        <button class="icon-btn" id="prev" title="Previous sample">&#8249;</button>
+        <button class="icon-btn" id="openFolder" title="Choose sample folder">&#128193;</button>
+        <button class="chip" id="chip" title="Browse samples" aria-expanded="false">
+          <span class="name" id="sampleName">&mdash;</span>
+        </button>
+        <button class="icon-btn" id="next" title="Next sample">&#8250;</button>
+      </div>
+
+      <div class="spacer"></div>
+
+      <button class="seg" id="loopToggle" title="Loop playback" aria-pressed="false"
+              style="padding:6px 12px;font-size:11px;color:var(--dim)">Loop</button>
+
+      <div class="seg" id="pitchSeg" title="Pitch mode">
+        <button data-value="0">Chromatic</button>
+        <button data-value="1">Time Preserve</button>
+      </div>
+
+      <div class="seg" id="genSeg" title="Generative sample variation">
+        <button data-value="0">Off</button>
+        <button data-value="1">Random</button>
+        <button data-value="2">Cycle</button>
+      </div>
+    </header>
+
+    <div class="drawer" id="drawer">
+      <div class="drawer-head">
+        <span class="drawer-folder" id="drawerFolder">no folder selected</span>
+        <input class="drawer-search" id="search" type="search" placeholder="Filter files" aria-label="Filter sample files" />
+        <span class="drawer-count" id="drawerCount"></span>
+      </div>
+      <ul class="file-list" id="fileList"></ul>
+    </div>
+
+    <main>
+      <section class="card wave-card">
+        <div class="wave-wrap">
+          <canvas id="wave" tabindex="0" role="img"
+                  aria-label="Sample waveform. Drag the loop start and end markers."></canvas>
+          <div class="wave-caption" id="waveCaption">Waveform</div>
+          <div class="empty-hint" id="emptyHint">Choose a folder to load a sample.<br />Drag the loop markers to edit the loop.</div>
+          <div class="tabs" id="sustainTabs">
+            <button data-value="0">Loop</button>
+            <button data-value="1">Crossfade</button>
+            <button data-value="2">Granular</button>
+          </div>
+        </div>
+        <div class="loop-row">
+          <label for="loopStartRange">Loop start</label>
+          <input id="loopStartRange" type="range" min="0" max="1" step="0.001" value="0" aria-label="Loop start" />
+          <label for="loopEndRange">Loop end</label>
+          <input id="loopEndRange" type="range" min="0" max="1" step="0.001" value="1" aria-label="Loop end" />
+        </div>
+      </section>
+
+      <section class="card controls" id="controls"></section>
+    </main>
+
+    <footer class="status" id="status"></footer>
+  </div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ bridge */
+const pending = new Map();
+let seq = 0;
+let hasBackend = false;
+
+function initBridge() {
+  hasBackend = !!(window.__JUCE__ && window.__JUCE__.backend);
+  if (!hasBackend) return;
+
+  window.__JUCE__.backend.addEventListener("__juce__complete", ({ promiseId, result }) => {
+    const resolve = pending.get(promiseId);
+    if (resolve) { pending.delete(promiseId); resolve(result); }
+  });
+}
+
+function call(name, ...args) {
+  return new Promise((resolve) => {
+    if (!hasBackend) { resolve(null); return; }
+    const resultId = seq++;
+    pending.set(resultId, resolve);
+    window.__JUCE__.backend.emitEvent("__juce__invoke", {
+      name,
+      params: Array.prototype.slice.call(args),
+      resultId,
+    });
+  });
+}
+
+/* ------------------------------------------------------------------- model */
+const KNOBS = [
+  { group: "Amp Envelope" },
+  { id: "attack",  label: "Attack",  min: 0, max: 2,   skew: 0.4, unit: " s", dec: 3 },
+  { id: "decay",   label: "Decay",   min: 0, max: 2,   skew: 0.4, unit: " s", dec: 3 },
+  { id: "sustain", label: "Sustain", min: 0, max: 1,   skew: 1,   unit: "",  dec: 2 },
+  { id: "release", label: "Release", min: 0, max: 5,   skew: 0.4, unit: " s", dec: 2 },
+
+  { group: "Loop / Sustain" },
+  { id: "crossfade", label: "Crossfade", min: 0, max: 0.5, skew: 1, unit: "", dec: 3 },
+
+  { group: "Grain Cloud" },
+  { id: "grainSize", label: "Size",    min: 5,   max: 500, skew: 0.5, unit: " ms", dec: 0 },
+  { id: "density",   label: "Density", min: 1,   max: 200, skew: 0.5, unit: "/s",  dec: 0 },
+  { id: "spray",     label: "Spray",   min: 0,   max: 1,   skew: 1,   unit: "",    dec: 2 },
+  { id: "spread",    label: "Spread",  min: 0,   max: 1,   skew: 1,   unit: "",    dec: 2 },
+  { id: "grainDrift", label: "Drift",  min: 0,   max: 1,   skew: 1,   unit: "",    dec: 2 },
+
+  { group: "Filter" },
+  { id: "filterCutoff",    label: "Cutoff",    min: 20,   max: 20000, skew: 0.25, unit: " Hz", dec: 0 },
+  { id: "filterReso",      label: "Reso",      min: 0.1,  max: 10,    skew: 0.5,  unit: "",    dec: 2 },
+  { id: "filterDrive",     label: "Drive",     min: 0,    max: 1,     skew: 1,    unit: "",    dec: 2 },
+  { id: "filterEnvAmount", label: "Env Amt",   min: -1,   max: 1,     skew: 1,    unit: "",    dec: 2 },
+  { id: "filterKeyTrack",  label: "Key Track", min: 0,    max: 1,     skew: 1,    unit: "",    dec: 2 },
+  { id: "filterAttack",    label: "F Attack",  min: 0,    max: 2,     skew: 0.4,  unit: " s",  dec: 3 },
+  { id: "filterDecay",     label: "F Decay",   min: 0,    max: 2,     skew: 0.4,  unit: " s",  dec: 3 },
+  { id: "filterSustain",   label: "F Sustain", min: 0,    max: 1,     skew: 1,    unit: "",    dec: 2 },
+  { id: "filterRelease",   label: "F Release", min: 0,    max: 5,     skew: 0.4,  unit: " s",  dec: 2 },
+
+  { group: "LFO" },
+  { id: "lfo1Rate",  label: "LFO1 Rate",  min: 0.01, max: 30, skew: 0.3, unit: " Hz", dec: 2 },
+  { id: "lfo1Depth", label: "LFO1 Depth", min: 0,    max: 1,  skew: 1,   unit: "",    dec: 2 },
+  { id: "lfo2Rate",  label: "LFO2 Rate",  min: 0.01, max: 30, skew: 0.3, unit: " Hz", dec: 2 },
+  { id: "lfo2Depth", label: "LFO2 Depth", min: 0,    max: 1,  skew: 1,   unit: "",    dec: 2 },
+
+  { group: "Output" },
+  { id: "volume", label: "Volume", min: 0, max: 1, skew: 0.5, unit: "", dec: 2 },
+
+  { group: "Generative" },
+  { id: "genProbability", label: "Variation", min: 0, max: 1, skew: 1, unit: "", dec: 2 },
+];
+
+const CHOICES = [
+  { id: "filterType", label: "Filter type", options: ["Low Pass", "Band Pass", "High Pass"] },
+  { id: "lfo1Shape",  label: "LFO1 shape",  options: ["Sine", "Triangle", "Saw", "Square"] },
+  { id: "lfo2Shape",  label: "LFO2 shape",  options: ["Sine", "Triangle", "Saw", "Square"] },
+  { id: "crossfadeCurve", label: "Loop curve", options: ["Gain", "Power"] },
+  { id: "grainWindow",    label: "Grain window", options: ["Hann", "Tukey"] },
+];
+
+const MOD_SOURCES = ["None", "LFO1", "LFO2", "Filter Env", "Amp Env", "Velocity", "Mod Wheel", "Key Track"];
+const MOD_DESTS = ["None", "Cutoff", "Resonance", "Pitch", "Level", "Grain Size", "Grain Density"];
+const NUM_MOD_SLOTS = 4;
+
+let state = null;
+let defaults = null;
+const knobEls = new Map();
+const choiceEls = new Map();
+
+/* ------------------------------------------------------------------ render */
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+function hasSample() { return !!(state && state.sampleName && state.sampleName !== "-"); }
+
+function displayValue(cfg, norm) {
+  const raw = cfg.min + (cfg.max - cfg.min) * Math.pow(norm, 1 / cfg.skew);
+  return raw.toFixed(cfg.dec) + cfg.unit;
+}
+
+function polar(cx, cy, r, deg) {
+  const rad = (deg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+function arc(cx, cy, r, a0, a1) {
+  const s = polar(cx, cy, r, a1), e = polar(cx, cy, r, a0);
+  const sweep = a1 - a0, large = sweep <= 180 ? 0 : 1;
+  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 0 ${e.x} ${e.y}`;
+}
+
+function buildControls() {
+  const host = document.getElementById("controls");
+
+  for (const cfg of KNOBS) {
+    if (!cfg.id) {
+      const g = document.createElement("div");
+      g.className = "group-label"; g.textContent = cfg.group;
+      host.appendChild(g); continue;
+    }
+
+    const el = document.createElement("div");
+    el.className = "knob";
+    el.dataset.id = cfg.id;
+    el.tabIndex = 0;
+    el.setAttribute("role", "slider");
+    el.setAttribute("aria-label", cfg.label);
+    el.setAttribute("aria-valuemin", String(cfg.min));
+    el.setAttribute("aria-valuemax", String(cfg.max));
+    el.innerHTML =
+      `<svg viewBox="0 0 48 48" aria-hidden="true">
+         <path class="track" d="${arc(24, 24, 18, 135, 405)}"></path>
+         <path class="fill" d=""></path>
+         <line class="ptr" x1="24" y1="24" x2="24" y2="10"></line>
+       </svg>
+       <div class="k-label">${cfg.label}</div>
+       <div class="k-value"></div>`;
+
+    attachKnobDrag(el, cfg);
+    el.addEventListener("dblclick", () => setParam(cfg.id, defaultNorm(cfg)));
+    el.addEventListener("keydown", (e) => knobKey(e, cfg));
+    host.appendChild(el);
+    knobEls.set(cfg.id, el);
+  }
+
+  for (const cfg of CHOICES) {
+    const wrap = document.createElement("div");
+    wrap.className = "choice";
+    wrap.innerHTML = `<label for="ch_${cfg.id}">${cfg.label}</label>`;
+    const sel = document.createElement("select");
+    sel.id = `ch_${cfg.id}`;
+    sel.setAttribute("aria-label", cfg.label);
+    cfg.options.forEach((o, i) => {
+      const opt = document.createElement("option");
+      opt.value = String(i); opt.textContent = o;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener("change", () => setParam(cfg.id, Number(sel.value) / (cfg.options.length - 1)));
+    wrap.appendChild(sel);
+    host.appendChild(wrap);
+    choiceEls.set(cfg.id, sel);
+  }
+
+  buildModMatrix(host);
+}
+
+const modEls = [];
+
+function buildModMatrix(host) {
+  const label = document.createElement("div");
+  label.className = "group-label";
+  label.textContent = "Mod Matrix";
+  host.appendChild(label);
+
+  for (let i = 0; i < NUM_MOD_SLOTS; i++) {
+    const row = document.createElement("div");
+    row.className = "mod-row";
+
+    const src = document.createElement("select");
+    MOD_SOURCES.forEach((o, k) => {
+      const op = document.createElement("option");
+      op.value = String(k); op.textContent = o; src.appendChild(op);
+    });
+    src.setAttribute("aria-label", `Mod ${i + 1} source`);
+
+    const dst = document.createElement("select");
+    MOD_DESTS.forEach((o, k) => {
+      const op = document.createElement("option");
+      op.value = String(k); op.textContent = o; dst.appendChild(op);
+    });
+    dst.setAttribute("aria-label", `Mod ${i + 1} destination`);
+
+    const amt = document.createElement("input");
+    amt.type = "range"; amt.min = "-1"; amt.max = "1"; amt.step = "0.01"; amt.value = "0";
+    amt.setAttribute("aria-label", `Mod ${i + 1} amount`);
+
+    const val = document.createElement("span");
+    val.className = "mod-amt"; val.textContent = "0.00";
+
+    src.addEventListener("change", () => setParam(`mod${i + 1}Source`, Number(src.value) / (MOD_SOURCES.length - 1)));
+    dst.addEventListener("change", () => setParam(`mod${i + 1}Dest`, Number(dst.value) / (MOD_DESTS.length - 1)));
+    amt.addEventListener("input", () => {
+      val.textContent = Number(amt.value).toFixed(2);
+      updateLocal(`mod${i + 1}Amount`, (Number(amt.value) + 1) / 2);
+    });
+    amt.addEventListener("change", () => commit(`mod${i + 1}Amount`));
+
+    row.append(src, dst, amt, val);
+    host.appendChild(row);
+    modEls.push({ src, dst, amt, val, idx: i });
+  }
+}
+
+function defaultNorm(cfg) {
+  if (defaults && defaults[cfg.id] != null) return defaults[cfg.id];
+  return 0.5;
+}
+
+function attachKnobDrag(el, cfg) {
+  let startY = 0, startNorm = 0, dragging = false;
+
+  el.addEventListener("pointerdown", (e) => {
+    if (!state) return;
+    dragging = true; startY = e.clientY;
+    startNorm = clamp01(state.params[cfg.id] ?? 0);
+    el.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  el.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    updateLocal(cfg.id, clamp01(startNorm + (startY - e.clientY) / 180));
+  });
+
+  const end = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    el.releasePointerCapture(e.pointerId);
+    commit(cfg.id);
+  };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+}
+
+function knobKey(e, cfg) {
+  if (!state) return;
+  const step = (cfg.max - cfg.min) / 100;
+  const norm = clamp01(state.params[cfg.id] ?? 0);
+  const raw = cfg.min + (cfg.max - cfg.min) * Math.pow(norm, 1 / cfg.skew);
+  let next = raw;
+
+  if (e.key === "ArrowUp" || e.key === "ArrowRight") next = raw + step;
+  else if (e.key === "ArrowDown" || e.key === "ArrowLeft") next = raw - step;
+  else if (e.key === "PageUp") next = raw + step * 10;
+  else if (e.key === "PageDown") next = raw - step * 10;
+  else if (e.key === "Home") next = cfg.min;
+  else if (e.key === "End") next = cfg.max;
+  else return;
+
+  e.preventDefault();
+  const newNorm = Math.pow((Math.max(cfg.min, Math.min(cfg.max, next)) - cfg.min) / (cfg.max - cfg.min), cfg.skew);
+  setParam(cfg.id, newNorm);
+}
+
+function reflectControls() {
+  if (!state) return;
+
+  for (const cfg of KNOBS) {
+    if (!cfg.id) continue;
+    const el = knobEls.get(cfg.id);
+    if (!el) continue;
+
+    const norm = clamp01(state.params[cfg.id] ?? 0);
+    el.setAttribute("aria-valuenow", (cfg.min + (cfg.max - cfg.min) * Math.pow(norm, 1 / cfg.skew)).toFixed(cfg.dec));
+    el.setAttribute("aria-valuetext", displayValue(cfg, norm));
+    el.querySelector(".fill").setAttribute("d", norm > 0.001 ? arc(24, 24, 18, 135, 135 + 270 * norm) : "");
+    el.querySelector(".k-value").textContent = displayValue(cfg, norm);
+
+    const tip = polar(24, 24, 18, 135 + 270 * norm);
+    const inner = polar(24, 24, 10, 135 + 270 * norm);
+    const ptr = el.querySelector(".ptr");
+    ptr.setAttribute("x1", inner.x); ptr.setAttribute("y1", inner.y);
+    ptr.setAttribute("x2", tip.x);   ptr.setAttribute("y2", tip.y);
+  }
+
+  for (const cfg of CHOICES) {
+    const sel = choiceEls.get(cfg.id);
+    if (!sel) continue;
+    const norm = clamp01(state.params[cfg.id] ?? 0);
+    sel.value = String(Math.round(norm * (cfg.options.length - 1)));
+  }
+
+  for (const m of modEls) {
+    const i = m.idx + 1;
+    const s = Math.round(clamp01(state.params[`mod${i}Source`] ?? 0) * (MOD_SOURCES.length - 1));
+    const d = Math.round(clamp01(state.params[`mod${i}Dest`] ?? 0) * (MOD_DESTS.length - 1));
+    const a = clamp01(state.params[`mod${i}Amount`] ?? 0.5) * 2 - 1;
+    m.src.value = String(s);
+    m.dst.value = String(d);
+    m.amt.value = String(a);
+    m.val.textContent = a.toFixed(2);
+  }
+}
+
+function setActive(container, value) {
+  for (const b of container.querySelectorAll("button"))
+    b.classList.toggle("active", Number(b.dataset.value) === value);
+}
+
+function reflectChrome() {
+  document.getElementById("sampleName").textContent = state && state.sampleName ? state.sampleName : "\u2014";
+
+  const loopOn = state && (state.params.loopEnabled ?? 0) > 0.5;
+  const lt = document.getElementById("loopToggle");
+  lt.classList.toggle("active", loopOn);
+  lt.setAttribute("aria-pressed", loopOn ? "true" : "false");
+
+  setActive(document.getElementById("sustainTabs"), state ? state.sustainMode : 0);
+  setActive(document.getElementById("pitchSeg"), state ? state.pitchMode : 0);
+  setActive(document.getElementById("genSeg"), state ? (state.genMode ?? 0) : 0);
+
+  const status = document.getElementById("status");
+  if (!state) {
+    status.textContent = hasBackend ? "Loading…" : "No native backend";
+    status.classList.remove("error");
+  } else if (state.error) {
+    status.textContent = state.error;
+    status.classList.add("error");
+  } else {
+    const pos = state.numSamples > 0 ? `${state.browserIndex + 1} / ${state.numSamples}` : "0 / 0";
+    const voices = `${state.activeVoices ?? 0}/${state.voiceCount ?? 0} voices`;
+    status.textContent = `${pos}   ${voices}   ${state.folder || "no folder selected"}`;
+    status.classList.remove("error");
+  }
+
+  document.getElementById("controls").classList.toggle("disabled", !hasSample());
+  document.getElementById("emptyHint").style.display = hasSample() ? "none" : "grid";
+
+  const ls = state ? clamp01(state.params.loopStart ?? 0) : 0;
+  const le = state ? clamp01(state.params.loopEnd ?? 1) : 1;
+  document.getElementById("loopStartRange").value = String(ls);
+  document.getElementById("loopEndRange").value = String(le);
+}
+
+/* ---------------------------------------------------------------- waveform */
+function drawWave() {
+  const canvas = document.getElementById("wave");
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const mid = h / 2, amp = h * 0.42;
+  const params = state ? state.params : {};
+  const ls = clamp01(params.loopStart ?? 0);
+  const le = clamp01(params.loopEnd ?? 1);
+  const cfNorm = clamp01((params.crossfade ?? 0) / 0.5);
+  const xAt = (n) => n * w;
+
+  if (!hasSample()) return;
+
+  // crossfade region
+  if (state.sustainMode === 1 && cfNorm > 0) {
+    const xFade = cfNorm * (le - ls) * w;
+    ctx.fillStyle = "rgba(242,163,60,0.16)";
+    ctx.fillRect(xAt(le) - xFade, 0, xFade, h);
+  }
+
+  const mins = state.peaksMin || [], maxs = state.peaksMax || [];
+  if (mins.length > 1) {
+    const n = mins.length;
+    ctx.beginPath();
+    ctx.moveTo(0, mid - maxs[0] * amp);
+    for (let i = 1; i < n; i++) ctx.lineTo((i / (n - 1)) * w, mid - maxs[i] * amp);
+    for (let i = n - 1; i >= 0; i--) ctx.lineTo((i / (n - 1)) * w, mid - mins[i] * amp);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(242,163,60,0.82)";
+    ctx.fill();
+  }
+
+  // loop markers
+  ctx.lineWidth = 1;
+  for (const [x, label] of [[xAt(ls), "S"], [xAt(le), "E"]]) {
+    ctx.strokeStyle = "rgba(230,232,234,0.65)";
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    ctx.fillStyle = "rgba(230,232,234,0.8)";
+    ctx.font = "10px " + getComputedStyle(document.body).fontFamily;
+    ctx.fillText(label, x + 3, h - 6);
+  }
+
+  // loop region tint
+  ctx.fillStyle = "rgba(242,163,60,0.08)";
+  ctx.fillRect(xAt(ls), 0, xAt(le) - xAt(ls), h);
+}
+
+function initWaveInteraction() {
+  const canvas = document.getElementById("wave");
+  let drag = null;
+
+  const posFromEvent = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    return clamp01((e.clientX - rect.left) / Math.max (1, rect.width));
+  };
+
+  canvas.addEventListener("pointerdown", (e) => {
+    if (!hasSample()) return;
+    const x = posFromEvent(e);
+    const ls = clamp01(state.params.loopStart ?? 0);
+    const le = clamp01(state.params.loopEnd ?? 1);
+    const w = Math.max (1, canvas.getBoundingClientRect().width);
+    const tol = 12 / w;
+
+    if (Math.abs(x - ls) <= tol) drag = { mode: "start", id: e.pointerId };
+    else if (Math.abs(x - le) <= tol) drag = { mode: "end", id: e.pointerId };
+    else if (x > ls && x < le) drag = { mode: "move", id: e.pointerId, grab: x - ls, len: le - ls };
+    else return;
+
+    canvas.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const x = posFromEvent(e);
+    const minLen = 0.002;
+
+    if (drag.mode === "start") {
+      updateLocal("loopStart", Math.min(x, clamp01(state.params.loopEnd ?? 1) - minLen));
+    } else if (drag.mode === "end") {
+      updateLocal("loopEnd", Math.max(x, clamp01(state.params.loopStart ?? 0) + minLen));
+    } else {
+      let s = x - drag.grab;
+      s = Math.max(0, Math.min(1 - drag.len, s));
+      updateLocal("loopStart", s);
+      updateLocal("loopEnd", s + drag.len);
+    }
+  });
+
+  const end = (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const mode = drag.mode;
+    drag = null;
+    canvas.releasePointerCapture(e.pointerId);
+    commit(mode === "start" ? "loopStart" : mode === "end" ? "loopEnd" : "loopEnd");
+    if (mode === "move") commit("loopStart");
+  };
+  canvas.addEventListener("pointerup", end);
+  canvas.addEventListener("pointercancel", end);
+
+  canvas.addEventListener("keydown", (e) => {
+    if (!hasSample()) return;
+    const p = state.params;
+    const step = e.shiftKey ? 0.01 : 0.002;
+    if (e.key === "ArrowLeft") { updateLocal("loopStart", clamp01((p.loopStart ?? 0) - step)); commit("loopStart"); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { updateLocal("loopStart", clamp01((p.loopStart ?? 0) + step)); commit("loopStart"); e.preventDefault(); }
+  });
+}
+
+/* ------------------------------------------------------------------ actions */
+function updateLocal(id, norm) {
+  if (!state) return;
+  state.params[id] = clamp01(norm);
+  reflectControls();
+  reflectChrome();
+  drawWave();
+}
+
+async function commit(id) {
+  const next = await call("setParam", id, clamp01(state.params[id] ?? 0));
+  if (next) { state = next; render(); }
+}
+
+async function setParam(id, norm) {
+  updateLocal(id, norm);
+  await commit(id);
+}
+
+async function refresh() {
+  const next = await call("getState");
+  if (next) {
+    state = next;
+    if (!defaults && state.params) defaults = Object.assign ({}, state.params);
+    render();
+  }
+}
+
+function render() {
+  reflectChrome();
+  reflectControls();
+  renderFiles();
+  drawWave();
+}
+
+function renderFiles(filterText) {
+  const list = document.getElementById("fileList");
+  const files = (state && state.files) || [];
+  const q = (filterText || "").toLowerCase();
+
+  document.getElementById("drawerFolder").textContent = (state && state.folder) || "no folder selected";
+  document.getElementById("drawerCount").textContent = files.length ? `${files.length} files` : "";
+  list.innerHTML = "";
+
+  files.forEach((name, i) => {
+    if (q && name.toLowerCase().indexOf(q) < 0) return;
+    const li = document.createElement("li");
+    li.textContent = name;
+    li.classList.toggle("active", state && i === state.browserIndex);
+    li.addEventListener("click", async () => {
+      const next = await call("selectSample", i);
+      if (next) { state = next; render(); }
+      document.getElementById("drawer").classList.remove("open");
+    });
+    list.appendChild(li);
+  });
+}
+
+function wireChrome() {
+  const drawer = document.getElementById("drawer");
+
+  document.getElementById("chip").addEventListener("click", () => {
+    const open = drawer.classList.toggle("open");
+    document.getElementById("chip").setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) document.getElementById("search").focus();
+  });
+
+  document.getElementById("search").addEventListener("input", (e) => renderFiles(e.target.value));
+
+  document.getElementById("openFolder").addEventListener("click", async () => {
+    const next = await call("openFolder");
+    if (next) { state = next; if (!defaults && state.params) defaults = Object.assign ({}, state.params); render(); }
+  });
+
+  document.getElementById("prev").addEventListener("click", async () => {
+    const next = await call("prevSample"); if (next) { state = next; render(); }
+  });
+  document.getElementById("next").addEventListener("click", async () => {
+    const next = await call("nextSample"); if (next) { state = next; render(); }
+  });
+
+  document.getElementById("sustainTabs").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (b) setParam("sustainMode", Number(b.dataset.value) / 2);
+  });
+  document.getElementById("pitchSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (b) setParam("pitchMode", Number(b.dataset.value));
+  });
+  document.getElementById("genSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (b) setParam("genMode", Number(b.dataset.value) / 2);
+  });
+  document.getElementById("loopToggle").addEventListener("click", () => {
+    setParam("loopEnabled", (state && (state.params.loopEnabled ?? 0) > 0.5) ? 0 : 1);
+  });
+
+  for (const [inputId, paramId] of [["loopStartRange", "loopStart"], ["loopEndRange", "loopEnd"]]) {
+    const el = document.getElementById(inputId);
+    el.addEventListener("input", (e) => updateLocal(paramId, Number(e.target.value)));
+    el.addEventListener("change", () => commit(paramId));
+  }
+
+  window.addEventListener("resize", drawWave);
+}
+
+/* -------------------------------------------------------------------- boot */
+initBridge();
+buildControls();
+initWaveInteraction();
+wireChrome();
+render();
+
+if (hasBackend) {
+  refresh();
+  setInterval(refresh, 1000);
+}
+</script>
+</body>
+</html>
